@@ -13,44 +13,13 @@ const geistMono = Geist_Mono({
    subsets: ['latin'],
 });
 
-const siteUrl = 'https://circle.lndev.me';
-
 export const metadata: Metadata = {
    title: {
-      template: '%s | Circle by lndev-ui',
-      default: 'Circle by lndev-ui',
+      template: '%s | TaskM',
+      default: 'TaskM',
    },
    description:
-      'Project management interface inspired by Linear. Built with Next.js and shadcn/ui, this application allows tracking of issues, projects and teams with a modern, responsive UI.',
-   openGraph: {
-      type: 'website',
-      locale: 'en_US',
-      url: siteUrl,
-      siteName: 'Circle',
-      images: [
-         {
-            url: `${siteUrl}/banner.png`,
-            width: 2560,
-            height: 1440,
-            alt: 'lndev/ui',
-         },
-      ],
-   },
-   twitter: {
-      card: 'summary_large_image',
-      site: '@ln_dev7',
-      creator: '@ln_dev7',
-      images: [
-         {
-            url: `${siteUrl}/banner.png`,
-            width: 2560,
-            height: 1440,
-            alt: 'Circle',
-         },
-      ],
-   },
-   authors: [{ name: 'Leonel NGOYA', url: 'https://lndev.me/' }],
-   keywords: ['ui', 'lndev', 'components', 'template'],
+      'Build substrate for AI-assisted software. Structured blueprints, compartmentalized agent dispatch, and human approval at every step.',
 };
 
 import { ThemeProvider } from '@/components/layout/theme-provider';

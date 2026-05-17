@@ -1,13 +1,21 @@
-'use client';
-
 import * as React from 'react';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
+import {
+   Sidebar,
+   SidebarContent,
+   SidebarFooter,
+   SidebarHeader,
+   SidebarGroup,
+   SidebarGroupLabel,
+   SidebarMenu,
+   SidebarMenuButton,
+   SidebarMenuItem,
+} from '@/components/ui/sidebar';
 import { NavProjects } from '@/components/taskm/sidebar/nav-projects';
 import Link from 'next/link';
-import { Layers } from 'lucide-react';
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { Layers, BookMarked } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { getProjects, DEV_USER_ID } from '@/lib/db/queries';
 
 function TaskMBranding() {
    return (
@@ -29,14 +37,30 @@ function TaskMBranding() {
    );
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export async function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+   // TODO: replace with session.user.id once auth is wired
+   const projects = await getProjects(DEV_USER_ID);
+
    return (
       <Sidebar collapsible="offcanvas" {...props}>
          <SidebarHeader>
             <TaskMBranding />
          </SidebarHeader>
          <SidebarContent>
-            <NavProjects />
+            <SidebarGroup>
+               <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+               <SidebarMenu>
+                  <SidebarMenuItem>
+                     <SidebarMenuButton asChild>
+                        <Link href="/dashboard/rules">
+                           <BookMarked className="size-4" />
+                           <span>Rules</span>
+                        </Link>
+                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+               </SidebarMenu>
+            </SidebarGroup>
+            <NavProjects projects={projects} />
          </SidebarContent>
          <SidebarFooter>
             <Button variant="outline" size="sm" className="w-full gap-2 text-muted-foreground">

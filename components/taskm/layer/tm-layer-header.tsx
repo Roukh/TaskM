@@ -1,17 +1,16 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { tmProjects } from '@/mock-data/tm-projects';
-import { tmLayers } from '@/mock-data/tm-layers';
+import { TASKM_LAYERS, LayerIndex } from '@/types/taskm';
 
 interface Props {
    projectId: string;
-   layerId: string;
+   layerIndex: LayerIndex;
+   projectName: string;
 }
 
-export default function TmLayerHeader({ projectId, layerId }: Props) {
-   const project = tmProjects.find((p) => p.id === projectId);
-   const layer = tmLayers.find((l) => l.id === layerId);
+export default function TmLayerHeader({ projectId, layerIndex, projectName }: Props) {
+   const layer = TASKM_LAYERS.find((l) => l.index === layerIndex);
 
    return (
       <div className="w-full flex flex-col items-center">
@@ -29,11 +28,11 @@ export default function TmLayerHeader({ projectId, layerId }: Props) {
                href={`/projects/${projectId}`}
                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-               {project?.name ?? projectId}
+               {projectName}
             </Link>
             <span className="text-muted-foreground">/</span>
             <span className="text-sm font-medium">
-               {layer ? `Layer ${layer.index}: ${layer.name}` : layerId}
+               {layer ? `Layer ${layer.index}: ${layer.name}` : `Layer ${layerIndex}`}
             </span>
          </div>
       </div>

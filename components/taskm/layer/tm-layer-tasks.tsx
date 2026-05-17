@@ -1,7 +1,7 @@
 'use client';
 
-import { tmLayers } from '@/mock-data/tm-layers';
-import { TmTask } from '@/types/taskm';
+import { Task } from '@/lib/db/schema';
+import { LayerIndex } from '@/types/taskm';
 import { cn } from '@/lib/utils';
 import {
    Circle,
@@ -14,76 +14,33 @@ import {
    Minus,
 } from 'lucide-react';
 
-// Placeholder tasks — will be replaced with Supabase queries
-const PLACEHOLDER_TASKS: TmTask[] = [
-   {
-      id: '1',
-      projectId: '',
-      layerId: '',
-      title: 'Define project type and constraints',
-      description: '',
-      status: 'complete',
-      priority: 'high',
-      createdAt: '2026-05-16',
-   },
-   {
-      id: '2',
-      projectId: '',
-      layerId: '',
-      title: 'Write spec rows to database',
-      description: '',
-      status: 'in-progress',
-      priority: 'high',
-      createdAt: '2026-05-16',
-   },
-   {
-      id: '3',
-      projectId: '',
-      layerId: '',
-      title: 'Confirm sitemap structure with client',
-      description: '',
-      status: 'todo',
-      priority: 'medium',
-      createdAt: '2026-05-16',
-   },
-   {
-      id: '4',
-      projectId: '',
-      layerId: '',
-      title: 'Document design constraints',
-      description: '',
-      status: 'todo',
-      priority: 'low',
-      createdAt: '2026-05-16',
-   },
-];
+type TaskStatus = 'todo' | 'in-progress' | 'complete' | 'blocked';
+type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-const statusConfig: Record<
-   TmTask['status'],
-   { icon: React.FC<{ className?: string }>; label: string }
-> = {
-   'todo': {
-      icon: ({ className }) => <Circle className={cn('text-muted-foreground', className)} />,
-      label: 'Todo',
-   },
-   'in-progress': {
-      icon: ({ className }) => (
-         <Loader2 className={cn('text-yellow-500 animate-spin', className)} />
-      ),
-      label: 'In progress',
-   },
-   'complete': {
-      icon: ({ className }) => <CheckCircle2 className={cn('text-green-500', className)} />,
-      label: 'Complete',
-   },
-   'blocked': {
-      icon: ({ className }) => <XCircle className={cn('text-red-500', className)} />,
-      label: 'Blocked',
-   },
-};
+const statusConfig: Record<TaskStatus, { icon: React.FC<{ className?: string }>; label: string }> =
+   {
+      'todo': {
+         icon: ({ className }) => <Circle className={cn('text-muted-foreground', className)} />,
+         label: 'Todo',
+      },
+      'in-progress': {
+         icon: ({ className }) => (
+            <Loader2 className={cn('text-yellow-500 animate-spin', className)} />
+         ),
+         label: 'In progress',
+      },
+      'complete': {
+         icon: ({ className }) => <CheckCircle2 className={cn('text-green-500', className)} />,
+         label: 'Complete',
+      },
+      'blocked': {
+         icon: ({ className }) => <XCircle className={cn('text-red-500', className)} />,
+         label: 'Blocked',
+      },
+   };
 
 const priorityConfig: Record<
-   TmTask['priority'],
+   TaskPriority,
    { icon: React.FC<{ className?: string }>; color: string }
 > = {
    urgent: {
@@ -104,9 +61,11 @@ const priorityConfig: Record<
    },
 };
 
-function TaskRow({ task }: { task: TmTask }) {
-   const status = statusConfig[task.status];
-   const priority = priorityConfig[task.priority];
+function TaskRow({ task }: { task: Task }) {
+   const taskStatus = (task.status ?? 'todo') as TaskStatus;
+   const taskPriority = (task.priority ?? 'medium') as TaskPriority;
+   const status = statusConfig[taskStatus];
+   const priority = priorityConfig[taskPriority];
    const StatusIcon = status.icon;
    const PriorityIcon = priority.icon;
 
@@ -118,39 +77,49 @@ function TaskRow({ task }: { task: TmTask }) {
             <span
                className={cn(
                   'truncate',
-                  task.status === 'complete' && 'line-through text-muted-foreground'
+                  taskStatus === 'complete' && 'line-through text-muted-foreground'
                )}
             >
                {task.title}
             </span>
          </div>
-         <span className="text-xs text-muted-foreground shrink-0">{task.createdAt}</span>
+         <span className="text-xs text-muted-foreground shrink-0">
+            {task.createdAt?.toLocaleDateString() ?? ''}
+         </span>
       </div>
    );
 }
 
 interface Props {
-   projectId: string;
-   layerId: string;
+   tasks: Task[];
+   layerIndex: LayerIndex;
+   audience?: 'llm' | 'user';
 }
 
-export default function TmLayerTasks({ projectId, layerId }: Props) {
-   const layer = tmLayers.find((l) => l.id === layerId);
-   const tasks = PLACEHOLDER_TASKS.map((t) => ({ ...t, projectId, layerId }));
+export default function TmLayerTasks({ tasks, audience }: Props) {
+   const visible = audience ? tasks.filter((t) => t.audience === audience) : tasks;
+   const emptyHint =
+      audience === 'user'
+         ? 'Actions that require human input or approval appear here.'
+         : 'Agents write tasks here as the layer is built.';
+
+   if (visible.length === 0) {
+      return (
+         <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm text-muted-foreground">
+            <p>No {audience === 'user' ? 'user' : 'agent'} tasks yet.</p>
+            <p className="text-xs">{emptyHint}</p>
+         </div>
+      );
+   }
 
    return (
       <div className="w-full">
-         {layer && (
-            <div className="px-6 py-4 border-b bg-muted/30">
-               <p className="text-sm text-muted-foreground">{layer.description}</p>
-            </div>
-         )}
          <div className="bg-container px-6 py-1.5 text-xs flex items-center text-muted-foreground border-b sticky top-0 z-10">
             <div className="flex-1">Task</div>
             <div>Created</div>
          </div>
          <div className="w-full">
-            {tasks.map((task) => (
+            {visible.map((task) => (
                <TaskRow key={task.id} task={task} />
             ))}
          </div>

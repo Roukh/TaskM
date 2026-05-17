@@ -1,7 +1,7 @@
 'use client';
 
-import { tmLayers } from '@/mock-data/tm-layers';
-import { TmLayer, LayerState } from '@/types/taskm';
+import { TASKM_LAYERS, LayerIndex, LayerState, computeLayerProgress, TmTask } from '@/types/taskm';
+import { Task } from '@/lib/db/schema';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Circle, Loader2, XCircle } from 'lucide-react';
@@ -35,13 +35,22 @@ const stateConfig: Record<
    },
 };
 
-function LayerCard({ layer, projectId }: { layer: TmLayer; projectId: string }) {
-   const config = stateConfig[layer.state];
+interface LayerCardProps {
+   layerIndex: LayerIndex;
+   name: string;
+   description: string;
+   percent: number;
+   state: LayerState;
+   projectId: string;
+}
+
+function LayerCard({ layerIndex, name, description, percent, state, projectId }: LayerCardProps) {
+   const config = stateConfig[state];
    const StateIcon = config.icon;
 
    return (
       <Link
-         href={`/projects/${projectId}/layers/${layer.id}`}
+         href={`/projects/${projectId}/layers/${layerIndex}`}
          className={cn(
             'flex flex-col gap-3 p-4 rounded-lg border bg-card hover:bg-card/80 transition-colors',
             config.color
@@ -50,53 +59,69 @@ function LayerCard({ layer, projectId }: { layer: TmLayer; projectId: string }) 
          <div className="flex items-start justify-between gap-2">
             <div>
                <div className="text-xs text-muted-foreground font-mono mb-0.5">
-                  Layer {layer.index}
+                  Layer {layerIndex}
                </div>
-               <div className="font-medium text-sm">{layer.name}</div>
+               <div className="font-medium text-sm">{name}</div>
             </div>
             <StateIcon className="size-4 shrink-0 mt-0.5" />
          </div>
-         <p className="text-xs text-muted-foreground leading-relaxed">{layer.description}</p>
-         {layer.state !== 'not-started' && (
+         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+         {state !== 'not-started' && (
             <div className="flex flex-col gap-1">
                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{config.label}</span>
-                  <span>{layer.percentComplete}%</span>
+                  <span>{percent}%</span>
                </div>
-               <Progress value={layer.percentComplete} className="h-1" />
+               <Progress value={percent} className="h-1" />
             </div>
          )}
-         {layer.state === 'not-started' && (
+         {state === 'not-started' && (
             <span className="text-xs text-muted-foreground">{config.label}</span>
          )}
       </Link>
    );
 }
 
-interface Props {
-   projectId: string;
+// Map DB Task to TmTask shape expected by computeLayerProgress
+function toTmTask(t: Task): TmTask {
+   return {
+      id: t.id,
+      projectId: t.projectId,
+      layerIndex: t.layerIndex as LayerIndex,
+      title: t.title,
+      description: t.description ?? null,
+      status: t.status as TmTask['status'],
+      priority: t.priority as TmTask['priority'],
+      audience: (t.audience ?? 'llm') as TmTask['audience'],
+      createdAt: t.createdAt?.toISOString() ?? '',
+   };
 }
 
-export default function TmLayerGrid({ projectId }: Props) {
-   const layers = tmLayers
-      .filter((l) => l.projectId === projectId)
-      .sort((a, b) => a.index - b.index);
+interface Props {
+   projectId: string;
+   tasks: Task[];
+}
 
-   if (layers.length === 0) {
-      return (
-         <div className="flex flex-col items-center justify-center h-64 gap-3 text-sm text-muted-foreground">
-            <p>No layers found for this project.</p>
-            <p className="text-xs">Run taskm init to set up layers.</p>
-         </div>
-      );
-   }
+export default function TmLayerGrid({ projectId, tasks }: Props) {
+   const tmTasks = tasks.map(toTmTask);
 
    return (
       <div className="p-6">
          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            {layers.map((layer) => (
-               <LayerCard key={layer.id} layer={layer} projectId={projectId} />
-            ))}
+            {TASKM_LAYERS.map((layer) => {
+               const { percent, state } = computeLayerProgress(tmTasks, layer.index as LayerIndex);
+               return (
+                  <LayerCard
+                     key={layer.index}
+                     layerIndex={layer.index as LayerIndex}
+                     name={layer.name}
+                     description={layer.description}
+                     percent={percent}
+                     state={state}
+                     projectId={projectId}
+                  />
+               );
+            })}
          </div>
       </div>
    );

@@ -1,7 +1,7 @@
 'use client';
 
-import { tmProjects } from '@/mock-data/tm-projects';
-import { tmLayers } from '@/mock-data/tm-layers';
+import { Project } from '@/lib/db/schema';
+import { TASKM_LAYERS } from '@/types/taskm';
 import {
    SidebarGroup,
    SidebarGroupLabel,
@@ -15,19 +15,29 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Box, ChevronRight, Layers, ScrollText } from 'lucide-react';
+import { Box, ChevronRight, Layers } from 'lucide-react';
 
-export function NavProjects() {
+interface Props {
+   projects: Project[];
+}
+
+export function NavProjects({ projects }: Props) {
    const pathname = usePathname();
+
+   if (projects.length === 0) {
+      return (
+         <SidebarGroup>
+            <SidebarGroupLabel>Projects</SidebarGroupLabel>
+            <p className="px-2 py-1 text-xs text-muted-foreground">No projects yet.</p>
+         </SidebarGroup>
+      );
+   }
 
    return (
       <SidebarGroup>
          <SidebarGroupLabel>Projects</SidebarGroupLabel>
          <SidebarMenu>
-            {tmProjects.map((project) => {
-               const layers = tmLayers
-                  .filter((l) => l.projectId === project.id)
-                  .sort((a, b) => a.index - b.index);
+            {projects.map((project) => {
                const isProjectActive = pathname.startsWith(`/projects/${project.id}`);
 
                return (
@@ -53,15 +63,15 @@ export function NavProjects() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                            <SidebarMenuSub>
-                              {layers.map((layer) => (
-                                 <SidebarMenuSubItem key={layer.id}>
+                              {TASKM_LAYERS.map((layer) => (
+                                 <SidebarMenuSubItem key={layer.index}>
                                     <SidebarMenuSubButton
                                        asChild
-                                       isActive={
-                                          pathname === `/projects/${project.id}/layers/${layer.id}`
-                                       }
+                                       isActive={pathname.startsWith(
+                                          `/projects/${project.id}/layers/${layer.index}`
+                                       )}
                                     >
-                                       <Link href={`/projects/${project.id}/layers/${layer.id}`}>
+                                       <Link href={`/projects/${project.id}/layers/${layer.index}`}>
                                           <Layers className="size-3.5" />
                                           <span>
                                              {layer.index}: {layer.name}
@@ -70,17 +80,6 @@ export function NavProjects() {
                                     </SidebarMenuSubButton>
                                  </SidebarMenuSubItem>
                               ))}
-                              <SidebarMenuSubItem>
-                                 <SidebarMenuSubButton
-                                    asChild
-                                    isActive={pathname === `/projects/${project.id}/logs`}
-                                 >
-                                    <Link href={`/projects/${project.id}/logs`}>
-                                       <ScrollText className="size-3.5" />
-                                       <span>Logs</span>
-                                    </Link>
-                                 </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
                            </SidebarMenuSub>
                         </CollapsibleContent>
                      </SidebarMenuItem>

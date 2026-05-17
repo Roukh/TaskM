@@ -1,8 +1,8 @@
 'use client';
 
-import { tmProjects } from '@/mock-data/tm-projects';
-import { tmLayers } from '@/mock-data/tm-layers';
-import { TmProject, LayerState } from '@/types/taskm';
+import { Project } from '@/lib/db/schema';
+import { Task } from '@/lib/db/schema';
+import { LayerState, TASKM_LAYERS, LayerIndex, computeLayerProgress, TmTask } from '@/types/taskm';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Box, ChevronRight } from 'lucide-react';
@@ -22,10 +22,32 @@ const stateLabels: Record<LayerState, string> = {
    'blocked': 'Blocked',
 };
 
-function ProjectRow({ project }: { project: TmProject }) {
-   const layers = tmLayers.filter((l) => l.projectId === project.id);
-   const completedLayers = layers.filter((l) => l.state === 'complete').length;
-   const currentLayer = layers.find((l) => l.state === 'in-progress');
+// Map DB Task to TmTask shape expected by computeLayerProgress
+function toTmTask(t: Task): TmTask {
+   return {
+      id: t.id,
+      projectId: t.projectId,
+      layerIndex: t.layerIndex as LayerIndex,
+      title: t.title,
+      description: t.description ?? null,
+      status: t.status as TmTask['status'],
+      priority: t.priority as TmTask['priority'],
+      audience: (t.audience ?? 'llm') as TmTask['audience'],
+      createdAt: t.createdAt?.toISOString() ?? '',
+   };
+}
+
+function ProjectRow({ project, tasks }: { project: Project; tasks: Task[] }) {
+   const projectTasks = tasks.filter((t) => t.projectId === project.id).map(toTmTask);
+
+   const layerStates = TASKM_LAYERS.map((layer) => ({
+      layer,
+      ...computeLayerProgress(projectTasks, layer.index as LayerIndex),
+   }));
+   const currentLayer = layerStates.find((l) => l.state === 'in-progress');
+   const completedCount = layerStates.filter((l) => l.state === 'complete').length;
+
+   const projectState = (project.state ?? 'not-started') as LayerState;
 
    return (
       <Link
@@ -47,20 +69,20 @@ function ProjectRow({ project }: { project: TmProject }) {
          <div className="w-[20%]">
             <Badge
                variant="secondary"
-               className={cn('text-xs font-normal', stateColors[project.state])}
+               className={cn('text-xs font-normal', stateColors[projectState])}
             >
-               {stateLabels[project.state]}
+               {stateLabels[projectState]}
             </Badge>
          </div>
 
          <div className="w-[15%] text-xs text-muted-foreground">
             {currentLayer ? (
                <span>
-                  Layer {currentLayer.index}: {currentLayer.name}
+                  Layer {currentLayer.layer.index}: {currentLayer.layer.name}
                </span>
             ) : (
                <span>
-                  {completedLayers}/{layers.length} layers
+                  {completedCount}/{TASKM_LAYERS.length} layers
                </span>
             )}
          </div>
@@ -72,7 +94,21 @@ function ProjectRow({ project }: { project: TmProject }) {
    );
 }
 
-export default function TmProjectsList() {
+interface Props {
+   projects: Project[];
+   tasks: Task[];
+}
+
+export default function TmProjectsList({ projects, tasks }: Props) {
+   if (projects.length === 0) {
+      return (
+         <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm text-muted-foreground">
+            <p>No projects yet.</p>
+            <p className="text-xs">Create your first project to get started.</p>
+         </div>
+      );
+   }
+
    return (
       <div className="w-full">
          <div className="bg-container px-6 py-1.5 text-xs flex items-center text-muted-foreground border-b sticky top-0 z-10">
@@ -83,8 +119,8 @@ export default function TmProjectsList() {
             <div className="w-[5%]" />
          </div>
          <div className="w-full">
-            {tmProjects.map((project) => (
-               <ProjectRow key={project.id} project={project} />
+            {projects.map((project) => (
+               <ProjectRow key={project.id} project={project} tasks={tasks} />
             ))}
          </div>
       </div>
