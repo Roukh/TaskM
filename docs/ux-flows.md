@@ -6,41 +6,57 @@ _Last updated: 2026-05-17_
 
 **Status: Implemented**
 
-| Route                                    | Page                             | Entry Points                                       |
-| ---------------------------------------- | -------------------------------- | -------------------------------------------------- |
-| `/`                                      | Redirect → `/projects`           | Direct URL                                         |
-| `/projects`                              | Project list                     | Sidebar logo, breadcrumb                           |
-| `/projects/[projectId]`                  | Layer grid                       | Sidebar project link, project list row             |
-| `/projects/[projectId]/layers/[layerId]` | Layer view (layer-specific tabs) | Sidebar layer link, layer card                     |
-| `/dashboard`                             | Redirect → `/dashboard/rules`    | Sidebar dashboard link                             |
-| `/dashboard/rules`                       | Rules management page            | Sidebar dashboard link, redirect from `/dashboard` |
+| Route                                       | Page                             | Entry Points                                       |
+| ------------------------------------------- | -------------------------------- | -------------------------------------------------- |
+| `/`                                         | Redirect → `/projects`           | Direct URL                                         |
+| `/login`                                    | Login form                       | Unauthenticated redirect, direct URL               |
+| `/signup`                                   | Signup form                      | Login page link                                    |
+| `/projects`                                 | Project list                     | Sidebar logo, breadcrumb                           |
+| `/projects/[projectId]`                     | Layer grid                       | Sidebar project link, project list row             |
+| `/projects/[projectId]/layers/[layerIndex]` | Layer view (layer-specific tabs) | Sidebar layer link, layer card                     |
+| `/projects/[projectId]/settings`            | Project settings                 | (planned entry point)                              |
+| `/dashboard`                                | Redirect → `/dashboard/rules`    | Sidebar dashboard link                             |
+| `/dashboard/rules`                          | Rules management page            | Sidebar dashboard link, redirect from `/dashboard` |
+
+---
+
+## Flow: Auth
+
+**Status: Implemented**
+
+```
+Unauthenticated user → redirect to /login
+  → BetterAuth login form (email/password)
+  → On success → redirect to /projects
+  → "Don't have an account?" → /signup
+```
 
 ---
 
 ## Flow: Project List
 
-**Status: Implemented (mock data)**
+**Status: Implemented**
 
 ```
 User lands on /projects
   → Sees table: name + goal | type | state badge | current layer
   → Click any row → /projects/[projectId]
-  → Click "New project" button (header or sidebar footer) → TBD
+  → Click "New project" button (header or sidebar footer) → TmNewProjectDialog opens
 ```
 
-**Columns:** Project (name + goal), Type (font-mono), State (colored badge), Current layer (active layer name or "N/M layers")
+**Columns:** Project (name + goal), Type (font-mono), State (colored badge), Current layer (active layer name)
 
 ---
 
 ## Flow: Project Overview (Layer Grid)
 
-**Status: Implemented (mock data)**
+**Status: Implemented**
 
 ```
 User lands on /projects/[projectId]
-  → Sees 7 layer cards in responsive grid (1→2→3→4 col)
+  → Sees 5 layer cards in responsive grid (1→2→3→4 col)
   → Each card shows: layer index + name, description, state icon, progress bar
-  → Click any card → /projects/[projectId]/layers/[layerId]
+  → Click any card → /projects/[projectId]/layers/[layerIndex]
 ```
 
 **Empty state:** "No layers found for this project. Run taskm init to set up layers."
@@ -64,12 +80,10 @@ User lands on /projects/[projectId]/layers/[layerIndex]
   → Default tab is the first tab listed below per layer
 ```
 
-Each layer exposes a tailored tab set. Logs and task tabs are shared across layers 1–4; the first tab is the layer's primary content view.
-
 ### Layer 0: Discovery
 
 **Tab: Questions** (default)
-Q&A pairs sourced from `discovery_questions` + `discovery_answers`. Inline editable answers. Header shows "X/N answered" count.
+Q&A pairs sourced from `discovery_questions` + `discovery_answers`. Inline editable answers. Header shows "X/N answered" count. All questions required.
 
 ### Layer 1: Infrastructure
 
@@ -91,8 +105,17 @@ Type icons: PlayCircle (blue), CheckCircle2 (green), Wrench (yellow), FileText (
 
 ### Layer 2: Frontend
 
-**Tab: Sitemap** (default)
-Hierarchical view: pages → components per page → atoms per component. Collapsible dropdowns at each level.
+**Tab: Pages** (default)
+CRUD table for site pages. Columns: path (monospace) | name | description | actions.
+
+**Tab: Components**
+CRUD table for UI components, grouped by family. Columns: name (monospace) | family | description | actions.
+
+**Tab: Atoms**
+CRUD table for design atoms, grouped by type. Columns: family | type | size | variant | interactive | actions.
+
+**Tab: Globals**
+CRUD for 6 global design token types: colors (with swatch), fonts, font sizes, spacings, radii, shadows.
 
 **Tab: Agent Tasks**
 Tasks where `audience = 'llm'`.
@@ -146,8 +169,10 @@ Sidebar
   └── Projects
        ├── [Project A] (collapsible)
        │    ├── Layer 0: Discovery
-       │    ├── Layer 1: UX & Flows
-       │    └── ... (all 7 layers)
+       │    ├── Layer 1: Infrastructure
+       │    ├── Layer 2: Frontend
+       │    ├── Layer 3: Backend
+       │    └── Layer 4: QA
        └── [Project B] ...
 ```
 
@@ -159,13 +184,12 @@ Sidebar auto-expands the active project. Active state detection via `usePathname
 
 **Status: Implemented**
 
-| Page                          | Breadcrumb                              |
-| ----------------------------- | --------------------------------------- |
-| `/projects`                   | Projects                                |
-| `/projects/[id]`              | Projects / Project Name                 |
-| `/projects/[id]/layers/[lid]` | Projects / Project Name / Layer N: Name |
-| `/projects/[id]/logs`         | Projects / Project Name / Logs          |
-| `/dashboard/rules`            | Dashboard / Rules                       |
+| Page                                 | Breadcrumb                              |
+| ------------------------------------ | --------------------------------------- |
+| `/projects`                          | Projects                                |
+| `/projects/[id]`                     | Projects / Project Name                 |
+| `/projects/[id]/layers/[layerIndex]` | Projects / Project Name / Layer N: Name |
+| `/dashboard/rules`                   | Dashboard / Rules                       |
 
 ---
 
@@ -190,7 +214,5 @@ Rules are global and user-scoped (not per-project). `layer_index = null` means t
 **Status: Planned**
 
 - `/projects/[projectId]/settings` — project settings (name, type, goal, constraints)
-- New project creation modal — triggered by "New project" button
 - Task detail view — click task row to expand or navigate to detail
 - Atom/spec editing — inline edit for spec values (agent-written, human-editable)
-- Auth gate — login/signup at `/login` (BetterAuth, not yet implemented)

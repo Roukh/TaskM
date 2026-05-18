@@ -41,44 +41,83 @@ Core property: **context independence**. Every build artifact lives in the DB. A
 
 ```
 app/
-  page.tsx                        → redirect to /projects
+  page.tsx                              → redirect to /projects
+  (auth)/
+    login/page.tsx                      → login form (BetterAuth)
+    signup/page.tsx                     → signup form (BetterAuth)
+  api/
+    auth/[...all]/route.ts              → BetterAuth handler
+    projects/route.ts                   → GET list, POST create
+    projects/[projectId]/route.ts       → GET project
+    projects/[projectId]/tasks/route.ts → GET tasks
+    projects/[projectId]/logs/route.ts  → GET/POST logs
+    github/repos/route.ts               → GitHub repo listing
+    jobs/route.ts                       → job queue
+    jobs/[jobId]/route.ts               → job status
+    user/claude-key/route.ts            → Claude API key management
   projects/
-    page.tsx                      → project list
+    page.tsx                            → project list
     [projectId]/
-      page.tsx                    → project overview (layer grid)
-      layers/[layerId]/page.tsx   → tasks for a layer
-      logs/page.tsx               → append-only log stream
-      settings/page.tsx           → project settings (planned)
+      page.tsx                          → project overview (layer grid)
+      layers/[layerIndex]/page.tsx      → layer view (tabbed, layer-specific)
+      settings/page.tsx                 → project settings
 
 components/
-  taskm/                          → TaskM-specific components
-    projects/                     → project list + header
-    project/                      → layer grid + project header
-    layer/                        → layer tasks + header
-    logs/                         → logs list + header
-    sidebar/                      → nav-projects (collapsible tree)
-  layout/                         → main-layout, sidebar shell
-  ui/                             → shadcn/ui primitives
+  taskm/
+    projects/
+      tm-projects-header.tsx            → breadcrumb header + "New project" button
+      tm-projects-list.tsx              → project table
+      tm-new-project-dialog.tsx         → create project dialog
+    project/
+      tm-project-header.tsx             → breadcrumb header
+      tm-layer-grid.tsx                 → 5 layer cards, responsive grid
+      tm-connect-repo.tsx               → GitHub repo connection UI
+    layer/
+      tm-layer-header.tsx               → breadcrumb header (Projects / Name / Layer N)
+      tm-layer-tabs.tsx                 → tab container (layer-specific tab sets)
+      tm-layer-tasks.tsx                → task list (from DB)
+      tm-layer-atoms.tsx                → spec rows grouped by category
+      tm-layer-checklist.tsx            → QA checklist (Layer 4 only)
+      tm-layer-discovery.tsx            → Discovery Q&A (Layer 0)
+      tm-layer-logs.tsx                 → layer-scoped event stream
+      tm-frontend-pages.tsx             → Pages CRUD (Layer 2)
+      tm-frontend-components.tsx        → Components CRUD (Layer 2)
+      tm-frontend-atoms.tsx             → Atoms CRUD (Layer 2)
+      tm-frontend-globals.tsx           → Global design tokens CRUD (Layer 2)
+    dashboard/
+      tm-rules-header.tsx               → breadcrumb header
+      tm-rules-page.tsx                 → rules CRUD table
+    settings/
+      tm-claude-api-key.tsx             → Claude API key input
+    sidebar/
+      nav-projects.tsx                  → collapsible project tree (reads from DB)
+  layout/
+    main-layout.tsx                     → SidebarProvider + AppSidebar + content
+    sidebar/app-sidebar.tsx             → sidebar shell
+    theme-provider.tsx                  → next-themes dark default
+  ui/                                   → shadcn/ui primitives
 
 lib/
   db/
-    schema.ts                     → Drizzle schema (source of truth)
-    index.ts                      → Neon HTTP client
-  utils.ts
+    schema.ts                           → Drizzle schema (source of truth)
+    index.ts                            → Neon HTTP client
+    queries.ts                          → read-only DB query functions
+    seed.ts                             → idempotent seed (taskm-core project)
+  auth/
+    index.ts                            → BetterAuth server config
+    client.ts                           → BetterAuth client config
+  actions/
+    projects.ts                         → project create/update Server Actions
+    discovery.ts                        → discovery answers Server Actions
+    rules.ts                            → rules CRUD Server Actions
+    frontend.ts                         → frontend layer CRUD Server Actions
 
-types/
-  taskm.ts                        → TypeScript interfaces
-
-mock-data/
-  tm-projects.ts                  → placeholder data (pre-Neon wire)
-  tm-layers.ts                    → placeholder data
-  tm-logs.ts                      → placeholder data
-
-types/
-  taskm.ts                        → temporary TypeScript interfaces (replace with Drizzle $inferSelect types once DB is wired)
-
-drizzle/                          → generated migration files
+middleware.ts                           → BetterAuth middleware (protects /projects, /dashboard)
+drizzle/                                → generated migration files
 drizzle.config.ts
+scripts/
+  seed-taskm-data.ts                    → seed Layer 2/3 design + schema data
+  worker.ts                             → VPS job worker
 ```
 
 ## Session Protocol

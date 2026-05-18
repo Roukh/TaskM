@@ -1,28 +1,34 @@
 # TaskM — Auth
 
-_Last updated: 2026-05-16_
+_Last updated: 2026-05-17_
 
 ## Provider
 
-**Status: Planned**
+**Status: Implemented**
 
-BetterAuth — same pattern as `Roukh/TaskM` repo. Email/password, session cookie strategy.
+BetterAuth — email/password + GitHub OAuth. Session cookie strategy.
 
 ## Tables
 
-**Status: Planned**
+**Status: Implemented**
 
 BetterAuth-owned: `user`, `session`, `account`, `verification`. Created via `npx better-auth migrate`. Never modify columns directly.
 
 ## Session Model
 
-**Status: Planned**
+**Status: Implemented**
 
-Cookie-based sessions. All dashboard routes require valid session. Mutations go through Server Actions with auth guard.
+Cookie-based sessions. All dashboard routes require a valid session. Route protection via `middleware.ts` (BetterAuth session check). Mutations go through Server Actions with auth guard.
+
+## Middleware
+
+**Status: Implemented**
+
+`middleware.ts` protects `/projects` and `/dashboard` routes. Unauthenticated requests are redirected to `/login`. Public routes: `/login`, `/signup`, `/api/auth/*`.
 
 ## Required Env Vars
 
-**Status: Planned**
+**Status: Implemented**
 
 ```
 DATABASE_URL=<neon-connection-string>
@@ -31,15 +37,18 @@ BETTER_AUTH_URL=http://localhost:3010
 NEXT_PUBLIC_APP_URL=http://localhost:3010
 ```
 
-## Bootstrap
+## Key Files
 
-**Status: Planned**
+**Status: Implemented**
 
-After setting `DATABASE_URL`, run once:
-
-```bash
-npx better-auth migrate
-```
+| File                             | Purpose                                      |
+| -------------------------------- | -------------------------------------------- |
+| `lib/auth/index.ts`              | BetterAuth server config (auth instance)     |
+| `lib/auth/client.ts`             | BetterAuth client config (browser)           |
+| `app/api/auth/[...all]/route.ts` | Mounts all BetterAuth endpoints at /api/auth |
+| `middleware.ts`                  | Session-based route protection               |
+| `app/(auth)/login/page.tsx`      | Login form                                   |
+| `app/(auth)/signup/page.tsx`     | Signup form                                  |
 
 ## Open Questions
 

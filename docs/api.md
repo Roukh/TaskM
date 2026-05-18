@@ -4,15 +4,15 @@ _Last updated: 2026-05-17_
 
 ## Current State
 
-**Status: No API routes implemented**
+**Status: Implemented**
 
-All data currently comes from `mock-data/`. API routes will be added when the DB is wired. BetterAuth's route (`/api/auth/[...all]`) is the first to be added.
+Data comes from Neon PostgreSQL via Drizzle ORM. Route Handlers serve GET requests; Server Actions handle mutations. `mock-data/` has been removed.
 
 ---
 
 ## BetterAuth Route
 
-**Status: Planned**
+**Status: Implemented**
 
 ```
 app/api/auth/[...all]/route.ts
@@ -22,70 +22,95 @@ Handles all BetterAuth endpoints (sign-in, sign-up, sign-out, session, etc.). Mo
 
 ---
 
-## Planned Application Routes
+## Implemented Route Handlers
 
-All routes require a valid BetterAuth session cookie. These will be implemented as Next.js Route Handlers or Server Actions.
+All routes require a valid BetterAuth session cookie.
 
 ### Projects
 
-**Status: Planned**
+**Status: Implemented**
 
-| Method  | Path                        | Auth     | Description                              |
-| ------- | --------------------------- | -------- | ---------------------------------------- |
-| `GET`   | `/api/projects`             | Required | List projects for current user           |
-| `POST`  | `/api/projects`             | Required | Create project                           |
-| `GET`   | `/api/projects/[projectId]` | Required | Get project with layers                  |
-| `PATCH` | `/api/projects/[projectId]` | Required | Update project (name, type, goal, state) |
-
-### Layers
-
-**Status: Planned**
-
-| Method  | Path                                         | Auth     | Description                |
-| ------- | -------------------------------------------- | -------- | -------------------------- |
-| `GET`   | `/api/projects/[projectId]/layers`           | Required | List layers for project    |
-| `PATCH` | `/api/projects/[projectId]/layers/[layerId]` | Required | Update layer state/percent |
+| Method | Path                        | Description                    |
+| ------ | --------------------------- | ------------------------------ |
+| `GET`  | `/api/projects`             | List projects for current user |
+| `POST` | `/api/projects`             | Create project                 |
+| `GET`  | `/api/projects/[projectId]` | Get single project             |
 
 ### Tasks
 
-**Status: Planned**
+**Status: Implemented**
 
-| Method  | Path                                       | Auth     | Description                            |
-| ------- | ------------------------------------------ | -------- | -------------------------------------- |
-| `GET`   | `/api/projects/[projectId]/tasks`          | Required | List tasks (filter by layerId, status) |
-| `POST`  | `/api/projects/[projectId]/tasks`          | Required | Create task                            |
-| `PATCH` | `/api/projects/[projectId]/tasks/[taskId]` | Required | Update task (status, priority, title)  |
+| Method | Path                              | Description                           |
+| ------ | --------------------------------- | ------------------------------------- |
+| `GET`  | `/api/projects/[projectId]/tasks` | List tasks (filterable by layerIndex) |
 
 ### Logs
 
-**Status: Planned**
+**Status: Implemented**
 
-| Method | Path                             | Auth     | Description                        |
-| ------ | -------------------------------- | -------- | ---------------------------------- |
-| `GET`  | `/api/projects/[projectId]/logs` | Required | Get logs (newest first, paginated) |
-| `POST` | `/api/projects/[projectId]/logs` | Required | Append log entry (agent use)       |
+| Method | Path                             | Description                  |
+| ------ | -------------------------------- | ---------------------------- |
+| `GET`  | `/api/projects/[projectId]/logs` | Get logs (newest first)      |
+| `POST` | `/api/projects/[projectId]/logs` | Append log entry (agent use) |
 
-### Specs
+### Jobs
 
-**Status: Planned**
+**Status: Implemented**
 
-| Method | Path                              | Auth     | Description                                  |
-| ------ | --------------------------------- | -------- | -------------------------------------------- |
-| `GET`  | `/api/projects/[projectId]/specs` | Required | Query specs (filter by category, layerIndex) |
-| `POST` | `/api/projects/[projectId]/specs` | Required | Write spec row (agent use)                   |
+| Method | Path                | Description    |
+| ------ | ------------------- | -------------- |
+| `GET`  | `/api/jobs`         | List jobs      |
+| `POST` | `/api/jobs`         | Enqueue job    |
+| `GET`  | `/api/jobs/[jobId]` | Get job status |
+
+### GitHub
+
+**Status: Implemented**
+
+| Method | Path                | Description              |
+| ------ | ------------------- | ------------------------ |
+| `GET`  | `/api/github/repos` | List user's GitHub repos |
+
+### User
+
+**Status: Implemented**
+
+| Method  | Path                   | Description               |
+| ------- | ---------------------- | ------------------------- |
+| `GET`   | `/api/user/claude-key` | Get stored Claude API key |
+| `PATCH` | `/api/user/claude-key` | Update Claude API key     |
 
 ---
 
-## Server Actions (Alternative)
+## Server Actions
+
+**Status: Implemented**
+
+Mutations implemented as Next.js Server Actions with auth guard. Located in `lib/actions/`.
+
+| File           | Actions                                          |
+| -------------- | ------------------------------------------------ |
+| `projects.ts`  | createProject, updateProject                     |
+| `discovery.ts` | saveDiscoveryAnswer                              |
+| `rules.ts`     | createRule, updateRule, deleteRule               |
+| `frontend.ts`  | CRUD for pages, components, atoms, global tokens |
+
+---
+
+## Planned Application Routes
 
 **Status: Planned**
 
-Mutations may be implemented as Next.js Server Actions with `requireAuth()` guard rather than Route Handlers, consistent with the pattern in `Roukh/TaskM`.
+| Method  | Path                              | Description                |
+| ------- | --------------------------------- | -------------------------- |
+| `PATCH` | `/api/projects/[projectId]`       | Update project metadata    |
+| `GET`   | `/api/projects/[projectId]/specs` | Query spec rows            |
+| `POST`  | `/api/projects/[projectId]/specs` | Write spec row (agent use) |
 
 ---
 
 ## Notes
 
 - `logs` and `specs` tables are append-only — no PATCH or DELETE endpoints
-- Agent tools (CLI) will call the API directly with a service-role key bypassing session auth
+- Agent tools (CLI/worker) call the API directly with a service-role key
 - Error format: `{ error: string, status: number }`

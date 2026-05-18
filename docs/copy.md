@@ -105,5 +105,5 @@ Spare. Technical. Direct. TaskM is infrastructure — it doesn't have personalit
 - IDs use slug format: `kebab-case`, never title case in technical fields
 - State values: sentence case (`Not started`, not `NOT STARTED`)
 - Timestamps: `MMM d, HH:mm` format (e.g., `May 16, 14:32`) — already in tm-logs-list.tsx
-- Layer names: consistent with `LAYER_DEFINITIONS` — `Discovery`, `UX & Flows`, `Backend`, `Components`, `Design`, `Copy`, `QA`
+- Layer names: consistent with `LAYER_DEFINITIONS` — `Discovery`, `Infrastructure`, `Frontend`, `Backend`, `QA` (5 fixed layers, indices 0–4)
 - No ellipsis on truncated labels — use CSS `truncate`; never add `...` manually
