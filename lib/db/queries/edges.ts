@@ -2,11 +2,11 @@ import { db } from '../index';
 import { edges, type EdgeRelation, type NodeStatus } from '../schema';
 import { eq, and, or } from 'drizzle-orm';
 
-export async function getEdgeById(edgeId: string) {
+export async function getEdgeById(edgeId: string, projectId: string) {
   const rows = await db
     .select()
     .from(edges)
-    .where(eq(edges.id, edgeId))
+    .where(and(eq(edges.id, edgeId), eq(edges.projectId, projectId)))
     .limit(1);
   return rows[0] ?? null;
 }
@@ -39,7 +39,9 @@ export async function getEdgesForNode(nodeId: string, direction: 'out' | 'in' | 
   );
 }
 
-export async function upsertEdge(data: {
+// Private helper — not exported. Status must be supplied by the caller,
+// but callers must go through upsertPlannedEdge or upsertCurrentEdge.
+async function _upsertEdge(data: {
   id: string;
   projectId: string;
   branch: string;
@@ -71,6 +73,20 @@ export async function upsertEdge(data: {
     })
     .returning();
   return rows[0];
+}
+
+/** Write a PLANNED edge — for use by human/LLM API routes only. */
+export async function upsertPlannedEdge(
+  data: Omit<Parameters<typeof _upsertEdge>[0], 'status'>
+) {
+  return _upsertEdge({ ...data, status: 'PLANNED' });
+}
+
+/** Write a CURRENT edge — for use by the AST scanner via /api/sync only. */
+export async function upsertCurrentEdge(
+  data: Omit<Parameters<typeof _upsertEdge>[0], 'status'>
+) {
+  return _upsertEdge({ ...data, status: 'CURRENT' });
 }
 
 export async function deleteEdge(edgeId: string) {

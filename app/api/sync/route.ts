@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProjectByApiKey } from '@/lib/db/queries/projects';
-import { upsertNode, markDeprecated } from '@/lib/db/queries/nodes';
-import { upsertEdge } from '@/lib/db/queries/edges';
+import { markDeprecated } from '@/lib/db/queries/nodes';
 import { type NodeLabel, type EdgeRelation } from '@/lib/db/schema';
+import { db } from '@/lib/db';
+import { nodes as nodesTable, edges as edgesTable } from '@/lib/db/schema';
+import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 const nodeSchema = z.object({
@@ -25,6 +27,11 @@ const syncSchema = z.object({
   commitSha: z.string().nullable().optional(),
   nodes: z.array(nodeSchema),
   edges: z.array(edgeSchema).optional(),
+  // When true, an empty nodes array is treated as an intentional full scan
+  // that found nothing, and all existing CURRENT nodes will be marked DEPRECATED.
+  // When false (default), an empty scan is treated as a no-op to prevent
+  // accidental mass-deprecation from a misconfigured scanner.
+  allowEmptyScan: z.boolean().optional().default(false),
 });
 
 export async function POST(request: NextRequest) {
@@ -45,42 +52,69 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { branch, commitSha, nodes, edges = [] } = parsed.data;
+  const { branch, commitSha, nodes, edges = [], allowEmptyScan } = parsed.data;
   const projectId = project.id;
 
-  // Upsert all scanned nodes as CURRENT
-  for (const node of nodes) {
-    await upsertNode({
-      id: node.id,
+  // Prefix scanner-supplied IDs with projectId to prevent cross-project collisions.
+  // Build a mapping so edges can reference the correct server-side IDs.
+  const idMap = new Map(nodes.map((n) => [n.id, `${projectId}:${n.id}`]));
+  const scannedIds = nodes.map((n) => `${projectId}:${n.id}`);
+
+  // Batch upsert all scanned nodes as CURRENT in a single statement.
+  // Using the Neon HTTP driver (drizzle-orm/neon-http) which does not support
+  // interactive transactions — batch inserts are best-effort here.
+  if (nodes.length > 0) {
+    const nodeValues = nodes.map((node) => ({
+      id: idMap.get(node.id)!,
       projectId,
       branch,
       label: node.label as NodeLabel,
       name: node.name,
-      status: 'CURRENT',
+      status: 'CURRENT' as const,
       filePath: node.filePath ?? null,
       metadata: node.metadata ?? null,
       commitSha: commitSha ?? null,
+    }));
+    await db.insert(nodesTable).values(nodeValues).onConflictDoUpdate({
+      target: nodesTable.id,
+      set: {
+        label: sql`excluded.label`,
+        name: sql`excluded.name`,
+        status: sql`excluded.status`,
+        filePath: sql`excluded.file_path`,
+        metadata: sql`excluded.metadata`,
+        commitSha: sql`excluded.commit_sha`,
+        updatedAt: new Date(),
+      },
     });
   }
 
-  // Mark any CURRENT node not in the scanned set as DEPRECATED
-  const scannedIds = nodes.map((n) => n.id);
-  if (scannedIds.length > 0) {
-    await markDeprecated(projectId, branch, scannedIds);
-  }
-
-  // Upsert edges
-  for (const edge of edges) {
-    await upsertEdge({
-      id: edge.id,
+  // Batch upsert all edges as CURRENT in a single statement.
+  if (edges.length > 0) {
+    const edgeValues = edges.map((edge) => ({
+      id: `${projectId}:${edge.id}`,
       projectId,
       branch,
-      sourceId: edge.sourceId,
-      targetId: edge.targetId,
+      sourceId: idMap.get(edge.sourceId) ?? `${projectId}:${edge.sourceId}`,
+      targetId: idMap.get(edge.targetId) ?? `${projectId}:${edge.targetId}`,
       relation: edge.relation as EdgeRelation,
-      status: 'CURRENT',
+      status: 'CURRENT' as const,
       commitSha: commitSha ?? null,
+    }));
+    await db.insert(edgesTable).values(edgeValues).onConflictDoUpdate({
+      target: edgesTable.id,
+      set: {
+        relation: sql`excluded.relation`,
+        status: sql`excluded.status`,
+        commitSha: sql`excluded.commit_sha`,
+      },
     });
+  }
+
+  // Mark any CURRENT node not in the scanned set as DEPRECATED.
+  // allowEmptyScan controls whether an empty scan triggers deprecation.
+  if (scannedIds.length > 0 || allowEmptyScan) {
+    await markDeprecated(projectId, branch, scannedIds);
   }
 
   return NextResponse.json({

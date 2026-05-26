@@ -1,8 +1,7 @@
 import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { getEdges, upsertEdge } from '@/lib/db/queries/edges';
+import { getEdges, upsertPlannedEdge } from '@/lib/db/queries/edges';
 import { getProject } from '@/lib/db/queries/projects';
-import { type EdgeRelation } from '@/lib/db/schema';
 import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 
@@ -25,12 +24,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const { searchParams } = request.nextUrl;
-  const edgeList = await getEdges(projectId, {
-    branch: searchParams.get('branch') ?? undefined,
-    relation: (searchParams.get('relation') as EdgeRelation) ?? undefined,
-    status: (searchParams.get('status') as 'PLANNED' | 'CURRENT' | 'DEPRECATED') ?? undefined,
+  const filterSchema = z.object({
+    status: z.enum(['PLANNED', 'CURRENT', 'DEPRECATED']).optional(),
+    branch: z.string().optional(),
+    relation: z.enum(['CALLS', 'IMPORTS', 'IMPLEMENTS', 'MUTATES']).optional(),
   });
+  const fp = filterSchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+  if (!fp.success) return NextResponse.json({ error: fp.error.flatten() }, { status: 400 });
+  const edgeList = await getEdges(projectId, fp.data);
 
   return NextResponse.json(edgeList);
 }
@@ -52,14 +53,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const branch = parsed.data.branch ?? project.defaultBranch;
-  const edge = await upsertEdge({
+  const edge = await upsertPlannedEdge({
     id: uuid(),
     projectId,
     branch,
     sourceId: parsed.data.sourceId,
     targetId: parsed.data.targetId,
     relation: parsed.data.relation,
-    status: 'PLANNED',
   });
 
   return NextResponse.json(edge, { status: 201 });

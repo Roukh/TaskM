@@ -15,8 +15,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const edge = await getEdgeById(edgeId);
-  if (!edge || edge.projectId !== projectId) {
+  const edge = await getEdgeById(edgeId, projectId);
+  if (!edge) {
     return NextResponse.json({ error: 'Edge not found' }, { status: 404 });
   }
 

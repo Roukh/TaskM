@@ -22,16 +22,18 @@ export async function getNodes(projectId: string, filters: NodeFilters = {}) {
     .orderBy(nodes.createdAt);
 }
 
-export async function getNodeById(nodeId: string) {
+export async function getNodeById(nodeId: string, projectId: string) {
   const rows = await db
     .select()
     .from(nodes)
-    .where(eq(nodes.id, nodeId))
+    .where(and(eq(nodes.id, nodeId), eq(nodes.projectId, projectId)))
     .limit(1);
   return rows[0] ?? null;
 }
 
-export async function upsertNode(data: {
+// Private helper — not exported. Status must be supplied by the caller,
+// but callers must go through upsertPlannedNode or upsertCurrentNode.
+async function _upsertNode(data: {
   id: string;
   projectId: string;
   branch: string;
@@ -75,6 +77,20 @@ export async function upsertNode(data: {
   return rows[0];
 }
 
+/** Write a PLANNED node — for use by human/LLM API routes only. */
+export async function upsertPlannedNode(
+  data: Omit<Parameters<typeof _upsertNode>[0], 'status'>
+) {
+  return _upsertNode({ ...data, status: 'PLANNED' });
+}
+
+/** Write a CURRENT node — for use by the AST scanner via /api/sync only. */
+export async function upsertCurrentNode(
+  data: Omit<Parameters<typeof _upsertNode>[0], 'status'>
+) {
+  return _upsertNode({ ...data, status: 'CURRENT' });
+}
+
 export async function updateNodePosition(
   nodeId: string,
   canvasX: number,
@@ -92,13 +108,13 @@ export async function deleteNode(nodeId: string) {
 
 // Mark all CURRENT nodes for a project/branch that are NOT in the scanned set
 // as DEPRECATED. Called by the sync endpoint after upserting fresh CURRENT nodes.
+// The call site decides whether an empty scan is intentional — this function
+// always runs; guard logic belongs in the caller (see allowEmptyScan in sync).
 export async function markDeprecated(
   projectId: string,
   branch: string,
   scannedIds: string[]
 ) {
-  if (scannedIds.length === 0) return;
-
   await db
     .update(nodes)
     .set({ status: 'DEPRECATED', updatedAt: new Date() })

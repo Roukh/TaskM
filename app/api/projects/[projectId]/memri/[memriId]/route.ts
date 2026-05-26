@@ -10,18 +10,20 @@ const updateSchema = z.object({
   targetNodeId: z.string().nullable().optional(),
 });
 
-type Params = { params: Promise<{ memriId: string }> };
+type Params = { params: Promise<{ projectId: string; memriId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { memriId } = await params;
-  const entry = await getMemriById(memriId);
-  if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const project = await getProject(entry.projectId);
+  const { projectId, memriId } = await params;
+  const project = await getProject(projectId);
   if (!project || project.userId !== session.user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const entry = await getMemriById(memriId);
+  if (!entry || entry.projectId !== projectId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -39,12 +41,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { memriId } = await params;
-  const entry = await getMemriById(memriId);
-  if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const project = await getProject(entry.projectId);
+  const { projectId, memriId } = await params;
+  const project = await getProject(projectId);
   if (!project || project.userId !== session.user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const entry = await getMemriById(memriId);
+  if (!entry || entry.projectId !== projectId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

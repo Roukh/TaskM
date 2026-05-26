@@ -22,8 +22,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const node = await getNodeById(nodeId);
-  if (!node || node.projectId !== projectId) {
+  const node = await getNodeById(nodeId, projectId);
+  if (!node) {
     return NextResponse.json({ error: 'Node not found' }, { status: 404 });
   }
 
@@ -50,8 +50,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const node = await getNodeById(nodeId);
-  if (!node || node.projectId !== projectId) {
+  const node = await getNodeById(nodeId, projectId);
+  if (!node) {
     return NextResponse.json({ error: 'Node not found' }, { status: 404 });
   }
 

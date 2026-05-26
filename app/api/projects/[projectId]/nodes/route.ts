@@ -1,8 +1,7 @@
 import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { getNodes, upsertNode } from '@/lib/db/queries/nodes';
+import { getNodes, upsertPlannedNode } from '@/lib/db/queries/nodes';
 import { getProject } from '@/lib/db/queries/projects';
-import { type NodeLabel, type NodeStatus } from '@/lib/db/schema';
 import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 
@@ -29,12 +28,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const { searchParams } = request.nextUrl;
-  const nodeList = await getNodes(projectId, {
-    status: (searchParams.get('status') as NodeStatus) ?? undefined,
-    branch: searchParams.get('branch') ?? undefined,
-    label: (searchParams.get('label') as NodeLabel) ?? undefined,
+  const filterSchema = z.object({
+    status: z.enum(['PLANNED', 'CURRENT', 'DEPRECATED']).optional(),
+    branch: z.string().optional(),
+    label: z.enum(['Function', 'Component', 'Endpoint', 'DatabaseModel']).optional(),
   });
+  const fp = filterSchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+  if (!fp.success) return NextResponse.json({ error: fp.error.flatten() }, { status: 400 });
+  const nodeList = await getNodes(projectId, fp.data);
 
   return NextResponse.json(nodeList);
 }
@@ -62,13 +63,12 @@ export async function POST(request: NextRequest, { params }: Params) {
       ? `${projectId}:${branch}:${parsed.data.filePath}:${parsed.data.name}`
       : uuid());
 
-  const node = await upsertNode({
+  const node = await upsertPlannedNode({
     id,
     projectId,
     branch,
     label: parsed.data.label,
     name: parsed.data.name,
-    status: 'PLANNED',
     filePath: parsed.data.filePath ?? null,
     metadata: parsed.data.metadata ?? null,
     canvasX: parsed.data.canvasX ?? null,

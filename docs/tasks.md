@@ -1,6 +1,6 @@
 # TaskM — Task List
 
-_Last updated: 2026-05-26_
+_Last updated: 2026-05-26 — Phase 1 schema + query layer + REST API complete_
 
 ---
 
@@ -35,33 +35,48 @@ _Last updated: 2026-05-26_
 
 | # | Task | Priority | Status |
 |---|---|---|---|
-| P1-1 | Enable pgvector extension on Neon: `CREATE EXTENSION IF NOT EXISTS vector` (run once via Neon console or migration) | high | open |
-| P1-2 | Add `node_label`, `node_status`, `edge_relation`, `memri_category` enums to Drizzle schema | high | open |
-| P1-3 | Add `nodes` table to Drizzle schema — id, project_id, branch, label, name, status, file_path, metadata jsonb, embedding vector(1536), canvas_x/y, commit_sha, created_at, updated_at | high | open |
-| P1-4 | Add `edges` table to Drizzle schema — id, project_id, branch, source_id, target_id, relation, status, commit_sha, created_at | high | open |
-| P1-5 | Add `memri` table to Drizzle schema — id, project_id, category, content, target_node_id, created_at, updated_at | high | open |
-| P1-6 | Add `api_key` column to `projects` table | high | open |
-| P1-7 | Run `pnpm db:push` — push new tables and columns to Neon | high | open |
+| P1-1 | Enable pgvector extension on Neon: `CREATE EXTENSION IF NOT EXISTS vector` (run once via Neon console or migration) | high | **open — user action required** |
+| P1-2 | Add `node_label`, `node_status`, `edge_relation`, `memri_category` enums to Drizzle schema | high | done |
+| P1-3 | Add `nodes` table to Drizzle schema — id, project_id, branch, label, name, status, file_path, metadata jsonb, embedding vector(1536), canvas_x/y, commit_sha, created_at, updated_at | high | done |
+| P1-4 | Add `edges` table to Drizzle schema — id, project_id, branch, source_id, target_id, relation, status, commit_sha, created_at | high | done |
+| P1-5 | Add `memri` table to Drizzle schema — id, project_id, category, content, target_node_id, created_at, updated_at | high | done |
+| P1-6 | Add `api_key` column to `projects` table | high | done |
+| P1-7 | Run `pnpm db:push` — push new tables and columns to Neon | high | **open — user action required** |
 
 ### Query Layer
 
 | # | Task | Priority | Status |
 |---|---|---|---|
-| P1-8 | `lib/db/queries/nodes.ts` — upsertNode, getNodes (filterable by status/branch/label), getNodeById, markDeprecated | high | open |
-| P1-9 | `lib/db/queries/edges.ts` — upsertEdge, getEdges, deleteEdge, getEdgesForNode (forward + reverse) | high | open |
-| P1-10 | `lib/db/queries/memri.ts` — upsertMemri, getMemri (by project + optional node binding), deleteMemri | high | open |
-| P1-11 | `lib/db/queries/delta.ts` — computeDelta SQL (PLANNED nodes with no CURRENT match + recently DEPRECATED nodes) returning ExecutionDelta | high | open |
+| P1-8 | `lib/db/queries/nodes.ts` — upsertNode, getNodes (filterable by status/branch/label), getNodeById, markDeprecated | high | done |
+| P1-9 | `lib/db/queries/edges.ts` — upsertEdge, getEdges, deleteEdge, getEdgesForNode (forward + reverse) | high | done |
+| P1-10 | `lib/db/queries/memri.ts` — createMemri, getMemri (by project + optional node binding), updateMemri, deleteMemri, getMemriById | high | done |
+| P1-11 | `lib/db/queries/delta.ts` — computeDelta SQL (PLANNED nodes with no CURRENT match + recently DEPRECATED nodes) returning ExecutionDelta | high | done |
 
 ### API Routes
 
 | # | Task | Priority | Status |
 |---|---|---|---|
-| P1-12 | Projects CRUD (`GET /api/projects`, `POST`, `GET/PATCH /api/projects/[id]`) — POST generates `api_key` via `crypto.randomBytes(32).toString('hex')` | high | open |
-| P1-13 | Nodes routes (`GET/POST /api/projects/[id]/nodes`, `PATCH/DELETE /api/projects/[id]/nodes/[nodeId]`) — query `nodes` table | high | open |
-| P1-14 | Edges routes (`GET/POST /api/projects/[id]/edges`, `DELETE /api/projects/[id]/edges/[edgeId]`) | high | open |
-| P1-15 | MemRI routes (`GET/POST /api/projects/[id]/memri`, `PATCH/DELETE /api/memri/[id]`) | high | open |
-| P1-16 | Sync endpoint (`POST /api/sync`) — bearer auth (project api_key), upsert nodes/edges as CURRENT, mark orphan CURRENT nodes DEPRECATED | high | open |
-| P1-17 | Delta endpoint (`GET /api/projects/[id]/delta`) — runs computeDelta, returns ExecutionDelta JSON | high | open |
+| P1-12 | Projects CRUD (`GET /api/projects`, `POST`, `GET/PATCH /api/projects/[id]`) — POST generates `api_key` via `crypto.randomBytes(32).toString('hex')` | high | done |
+| P1-13 | Nodes routes (`GET/POST /api/projects/[id]/nodes`, `PATCH/DELETE /api/projects/[id]/nodes/[nodeId]`) — query `nodes` table | high | done |
+| P1-14 | Edges routes (`GET/POST /api/projects/[id]/edges`, `DELETE /api/projects/[id]/edges/[edgeId]`) | high | done |
+| P1-15 | MemRI routes (`GET/POST /api/projects/[id]/memri`, `PATCH/DELETE /api/memri/[id]`) | high | done |
+| P1-16 | Sync endpoint (`POST /api/sync`) — bearer auth (project api_key), upsert nodes/edges as CURRENT, mark orphan CURRENT nodes DEPRECATED | high | done |
+| P1-17 | Delta endpoint (`GET /api/projects/[id]/delta`) — runs computeDelta, returns ExecutionDelta JSON | high | done |
+
+### Phase 1 Review Remediations
+
+_From code review — block on CRITICAL before Phase 2 starts._
+
+| # | Task | Priority | Status |
+|---|---|---|---|
+| P1-R1 | **[CRITICAL]** Split `upsertNode`/`upsertEdge` into `upsertPlannedNode`/`upsertCurrentNode` (and same for edges) — status must not be caller-supplied; enforce invariant at query layer, not convention | critical | done |
+| P1-R2 | **[CRITICAL]** Add `allowEmptyScan: boolean` to sync schema; only skip `markDeprecated` when explicitly acknowledged — prevents ghost CURRENT state on misconfigured scanner | critical | done |
+| P1-R3 | **[HIGH]** Batch inserts in sync (`values([...array])`) — fix N+1 write loop. Note: Neon HTTP driver does not support interactive transactions; batch inserts are best-effort. | high | done |
+| P1-R4 | **[HIGH]** Add `projectId` to `getNodeById` / `getEdgeById` WHERE clause — remove cross-project read risk from query layer | high | done |
+| P1-R5 | **[HIGH]** Prefix scanner-supplied node IDs with projectId in sync endpoint — prevent cross-project ID collision overwriting wrong project's nodes | high | done |
+| P1-R6 | **[HIGH]** Validate query string enum params with Zod in nodes/edges GET routes — replace `as NodeStatus` casts | high | done |
+| P1-R7 | **[HIGH]** Move `PATCH /api/memri/[memriId]` and `DELETE` under `/api/projects/[projectId]/memri/[memriId]/` for consistent ownership scoping | high | done |
+| P1-R8 | **[MEDIUM]** Wrap `computeDelta` queries in a transaction with REPEATABLE READ isolation — prevent race with concurrent sync | medium | open |
 
 ---
 
