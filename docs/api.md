@@ -95,16 +95,16 @@ Returns the `ExecutionDelta` object (see data-model.md).
 
 ### MemRI
 
-**Status: Planned**
+**Status: Implemented**
 
-**Data source: KuzuDB (embedded, per project).** Project-scoped MemRI entries live in the `MemRI` node table in KuzuDB. Global (user-level) MemRI is out of scope until Phase 5 (`global_memri` table in Neon).
+**Data source: Neon `memri` table.**
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/projects/[projectId]/memri` | List MemRI entries for the project (from KuzuDB) |
-| `POST` | `/api/projects/[projectId]/memri` | Create MemRI entry in KuzuDB |
-| `PATCH` | `/api/memri/[memriId]` | Update MemRI entry in KuzuDB |
-| `DELETE` | `/api/memri/[memriId]` | Delete MemRI entry from KuzuDB |
+| `GET` | `/api/projects/[projectId]/memri` | List entries; pass `?targetNodeId=` to get node-specific + project-wide |
+| `POST` | `/api/projects/[projectId]/memri` | Create MemRI entry |
+| `PATCH` | `/api/projects/[projectId]/memri/[memriId]` | Update MemRI entry |
+| `DELETE` | `/api/projects/[projectId]/memri/[memriId]` | Delete MemRI entry |
 
 ---
 

@@ -1,6 +1,6 @@
 # TaskM — Task List
 
-_Last updated: 2026-05-26 — Phase 1 schema + query layer + REST API complete_
+_Last updated: 2026-05-26 — Phase 1 complete. All review remediations done. Ready for Phase 2._
 
 ---
 
@@ -76,7 +76,7 @@ _From code review — block on CRITICAL before Phase 2 starts._
 | P1-R5 | **[HIGH]** Prefix scanner-supplied node IDs with projectId in sync endpoint — prevent cross-project ID collision overwriting wrong project's nodes | high | done |
 | P1-R6 | **[HIGH]** Validate query string enum params with Zod in nodes/edges GET routes — replace `as NodeStatus` casts | high | done |
 | P1-R7 | **[HIGH]** Move `PATCH /api/memri/[memriId]` and `DELETE` under `/api/projects/[projectId]/memri/[memriId]/` for consistent ownership scoping | high | done |
-| P1-R8 | **[MEDIUM]** Wrap `computeDelta` queries in a transaction with REPEATABLE READ isolation — prevent race with concurrent sync | medium | open |
+| P1-R8 | **[MEDIUM]** Consistent `computeDelta` read — merged 3 separate queries into one `SELECT ... WHERE status IN (...)`, eliminating the race window. Neon HTTP driver has no transactions; single query is the correct fix. | medium | done |
 
 ---
 

@@ -1,6 +1,6 @@
 import { db } from '../index';
 import { nodes } from '../schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export interface NodeDelta {
   node_id: string;
@@ -31,35 +31,27 @@ export async function computeDelta(
   projectId: string,
   branch: string
 ): Promise<ExecutionDelta> {
-  // PLANNED nodes
-  const plannedNodes = await db
+  // Single query fetches all relevant nodes — eliminates the race condition
+  // that exists when PLANNED, CURRENT, and DEPRECATED are queried separately.
+  // The Neon HTTP driver does not support interactive transactions, so merging
+  // into one SELECT is the correct consistency fix.
+  const allNodes = await db
     .select()
     .from(nodes)
     .where(
       and(
         eq(nodes.projectId, projectId),
         eq(nodes.branch, branch),
-        eq(nodes.status, 'PLANNED')
+        inArray(nodes.status, ['PLANNED', 'CURRENT', 'DEPRECATED'])
       )
     );
 
-  // CURRENT node IDs for the same project/branch
-  const currentRows = await db
-    .select({ id: nodes.id })
-    .from(nodes)
-    .where(
-      and(
-        eq(nodes.projectId, projectId),
-        eq(nodes.branch, branch),
-        eq(nodes.status, 'CURRENT')
-      )
-    );
+  const currentIdSet = new Set(
+    allNodes.filter((n) => n.status === 'CURRENT').map((n) => n.id)
+  );
 
-  const currentIdSet = new Set(currentRows.map((r) => r.id));
-
-  // CREATE: PLANNED nodes with no matching CURRENT node
-  const toCreate: NodeDelta[] = plannedNodes
-    .filter((n) => !currentIdSet.has(n.id))
+  const toCreate: NodeDelta[] = allNodes
+    .filter((n) => n.status === 'PLANNED' && !currentIdSet.has(n.id))
     .map((n) => ({
       node_id: n.id,
       name: n.name,
@@ -68,25 +60,15 @@ export async function computeDelta(
       metadata: (n.metadata as Record<string, unknown>) ?? {},
     }));
 
-  // DELETE: DEPRECATED nodes (recently marked by scanner)
-  const toDelete = await db
-    .select()
-    .from(nodes)
-    .where(
-      and(
-        eq(nodes.projectId, projectId),
-        eq(nodes.branch, branch),
-        eq(nodes.status, 'DEPRECATED')
-      )
-    );
-
-  const deleteList: NodeDelta[] = toDelete.map((n) => ({
-    node_id: n.id,
-    name: n.name,
-    label: n.label,
-    file_path: n.filePath,
-    metadata: (n.metadata as Record<string, unknown>) ?? {},
-  }));
+  const deleteList: NodeDelta[] = allNodes
+    .filter((n) => n.status === 'DEPRECATED')
+    .map((n) => ({
+      node_id: n.id,
+      name: n.name,
+      label: n.label,
+      file_path: n.filePath,
+      metadata: (n.metadata as Record<string, unknown>) ?? {},
+    }));
 
   return {
     project_id: projectId,
